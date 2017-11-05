@@ -1,0 +1,5 @@
+train_images_count=37605
+train_images_signs_count=69581
+test_images_count=21583
+test_images_signs_count=34777
+classes=15628
