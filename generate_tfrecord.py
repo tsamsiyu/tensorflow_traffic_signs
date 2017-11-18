@@ -1,20 +1,15 @@
 """
 Usage:
-  # From tensorflow/models/
-  # Create train data:
-  python generate_tfrecord.py --csv_input=data/train_labels.csv  --output_path=train.record
-
-  # Create test data:
-  python generate_tfrecord.py --csv_input=data/test_labels.csv  --output_path=test.record
-
-  python3 generate_tfrecord.py --csv_input=data/rtsd-train.csv --output_path=rtsd.record
+  python generate_tfrecord.py --name=sm_train_5k
 """
+
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
 import os
 import io
+import re
 import pandas as pd
 import tensorflow as tf
 
@@ -23,17 +18,10 @@ from research.object_detection.utils import dataset_util
 from collections import namedtuple, OrderedDict
 
 flags = tf.app.flags
-flags.DEFINE_string('csv_input', '', 'Path to the CSV input')
-flags.DEFINE_string('output_path', '', 'Path to output TFRecord')
+flags.DEFINE_string('name', '', 'Data name')
 FLAGS = flags.FLAGS
-
-
-# TO-DO replace this with label map
-def class_text_to_int(row_label):
-    if row_label == 'raccoon':
-        return 1
-    else:
-        None
+img_name_regex = re.compile('^autosave(\d\d)_(\d\d)_(\d\d\d\d)_(.+\..+)$')
+to_base_dir = 'images'
 
 
 def split(df, group):
@@ -42,8 +30,14 @@ def split(df, group):
     return [data(filename, gb.get_group(x)) for filename, x in zip(gb.groups.keys(), gb.groups)]
 
 
-def create_tf_example(group, path):
-    with tf.gfile.GFile(os.path.join(path, '{}'.format(group.filename)), 'rb') as fid:
+def file_location(filename):
+    (day, month, year, new_file_name) = img_name_regex.match(filename).groups()
+    return to_base_dir + '/' + year + '/' + month + '/' + day + '/' + new_file_name
+
+
+def create_tf_example(group):
+    path = file_location(group.filename)
+    with tf.gfile.GFile(path, 'rb') as fid:
         encoded_jpg = fid.read()
     encoded_jpg_io = io.BytesIO(encoded_jpg)
     image = Image.open(encoded_jpg_io)
@@ -64,7 +58,7 @@ def create_tf_example(group, path):
         ymins.append(row['y_from'] / height)
         ymaxs.append(row['y_from'] + row['height'] / height)
         classes_text.append(row['sign_class'].encode('utf8'))
-        classes.append(row['sign_id'])
+        classes.append(row['sign_class_id'])
 
     tf_example = tf.train.Example(features=tf.train.Features(feature={
         'image/height': dataset_util.int64_feature(height),
@@ -84,16 +78,14 @@ def create_tf_example(group, path):
 
 
 def main(_):
-    writer = tf.python_io.TFRecordWriter(FLAGS.output_path)
-    path = '/media/tsamsiyu/985A6DDF5A6DBAA0/Users/Dmitry/Downloads/full-frames.tar/full-frames/rtsd-frames'
-    examples = pd.read_csv(FLAGS.csv_input)
+    writer = tf.python_io.TFRecordWriter('records/' + FLAGS.name + '.record')
+    examples = pd.read_csv('materials/' + FLAGS.name + '.csv')
     grouped = split(examples, 'filename')
     for group in grouped:
-        tf_example = create_tf_example(group, path)
+        tf_example = create_tf_example(group)
         writer.write(tf_example.SerializeToString())
-
     writer.close()
-    output_path = os.path.join(os.getcwd(), FLAGS.output_path)
+    output_path = os.path.join(os.getcwd(), 'records/' + FLAGS.name + '.record')
     print('Successfully created the TFRecords: {}'.format(output_path))
 
 
