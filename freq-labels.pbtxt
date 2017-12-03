@@ -1,0 +1,20 @@
+item {
+    id : 1
+    name : 'main_road'
+}
+item {
+    id : 2
+    name : 'crosswalk'
+}
+item {
+    id : 3
+    name : 'stop_is_forbidden'
+}
+item {
+    id : 4
+    name : 'give_a_way'
+}
+item {
+    id : 5
+    name : 'bus_stop'
+}
